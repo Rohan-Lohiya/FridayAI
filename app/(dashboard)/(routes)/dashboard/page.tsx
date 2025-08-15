@@ -50,7 +50,7 @@ const DashBoardPage = () => {
     <div className="pb-10">
       {/* Header Section */}
       <div className="mb-10 space-y-4">
-        <h2 className="text-3xl md:text-5xl font-bold text-center bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-transparent bg-clip-text animate-gradient">
+        <h2 className="text-3xl md:text-5xl font-bold text-center bg-gradient-to-r from-sky-500 via-violet-500 to-indigo-500 text-transparent bg-clip-text animate-gradient">
           Explore AI Tools
         </h2>
         <p className="text-muted-foreground font-light text-sm md:text-lg text-center">

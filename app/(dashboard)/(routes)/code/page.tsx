@@ -17,14 +17,18 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
 import { BotAvatar } from "@/components/bot-avatar";
-
 import { useProModal } from "@/hooks/use-pro-modal";
 import { cn } from "@/lib/utils";
 
 import { formSchema } from "./constants";
-import ReactMarkdown from "react-markdown";
 
-// Define message type for better type safety
+// Markdown rendering
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { dracula } from "react-syntax-highlighter/dist/esm/styles/prism";
+
+// Define message type
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -38,23 +42,16 @@ const CodePage = () => {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      prompt: "",
-    },
+    defaultValues: { prompt: "" },
   });
 
   const isLoading = form.formState.isSubmitting;
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const userMessage: Message = {
-        role: "user",
-        content: values.prompt,
-      };
+      const userMessage: Message = { role: "user", content: values.prompt };
       const newMessages = [...messages, userMessage];
-      const response = await axios.post("/api/code", {
-        messages: newMessages,
-      });
+      const response = await axios.post("/api/code", { messages: newMessages });
       setMessages([...messages, userMessage, response.data]);
       form.reset();
     } catch (error: any) {
@@ -78,44 +75,43 @@ const CodePage = () => {
         bgColor="bg-green-700/10"
       />
       <div className="px-4 lg:px-8">
-        <div>
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="rounded-lg border w-full p-4 px-3 md:px-6 focus-within:shadow-sm grid grid-cols-12 gap-2"
-            >
-              <FormField
-                name="prompt"
-                render={({ field }) => (
-                  <FormItem className="col-span-12 lg:col-span-10">
-                    <FormControl className="m-0 p-0">
-                      <Input
-                        className="border-0 outline-none focus-visible:ring-0 focus-visible:ring-transparent"
-                        disabled={isLoading}
-                        placeholder="ex. A simple toggle button using React hooks."
-                        {...field}
-                      ></Input>
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <Button className="col-span-12 lg:col-span-2 w-full" disabled={isLoading}>
-                Generate
-              </Button>
-            </form>
-          </Form>
-        </div>
+        {/* Prompt Form */}
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="rounded-lg border w-full p-4 px-3 md:px-6 focus-within:shadow-sm grid grid-cols-12 gap-2"
+          >
+            <FormField
+              name="prompt"
+              render={({ field }) => (
+                <FormItem className="col-span-12 lg:col-span-10">
+                  <FormControl className="m-0 p-0">
+                    <Input
+                      className="border-0 outline-none focus-visible:ring-0 focus-visible:ring-transparent"
+                      disabled={isLoading}
+                      placeholder="ex. A simple toggle button using React hooks."
+                      {...field}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <Button className="col-span-12 lg:col-span-2 w-full" disabled={isLoading}>
+              Generate
+            </Button>
+          </form>
+        </Form>
+
+        {/* Messages */}
         <div className="space-y-4 mt-4">
           {isLoading && (
-            <div className="p-8 roundeed-lg w-full flex items-center justify-center bg-muted">
+            <div className="p-8 rounded-lg w-full flex items-center justify-center bg-muted">
               <Loader />
             </div>
           )}
-          {messages.length === 0 && !isLoading && (
-            <div>
-              <Empty label="No conversation started" />
-            </div>
-          )}
+
+          {messages.length === 0 && !isLoading && <Empty label="No conversation started" />}
+
           <div className="flex flex-col-reverse gap-y-4">
             {messages.map((message, index) => (
               <div
@@ -127,17 +123,26 @@ const CodePage = () => {
               >
                 {message.role === "user" ? <UserAvatar /> : <BotAvatar />}
                 <ReactMarkdown
+                  className="prose prose-sm max-w-none"
+                  remarkPlugins={[remarkGfm]}
                   components={{
-                    pre: ({ node, ...props }) => (
-                      <div className="overflow-auto w-full my-2 bg-black/10 p-2 rounded-lg">
-                        <pre {...props} />
-                      </div>
-                    ),
-                    code: ({ node, ...props }) => <code className="bg-black/10 rounded-lg p-1 font-bold" {...props} />,
+                    code({ className, children, ...props }) {
+                      // @ts-expect-error: 'inline' is not in props, but passed as second argument
+                      const { inline } = props;
+                      const match = /language-(\w+)/.exec(className || "");
+                      return !inline && match ? (
+                        <SyntaxHighlighter style={dracula} language={match[1]} PreTag="div" {...props}>
+                          {String(children).replace(/\n$/, "")}
+                        </SyntaxHighlighter>
+                      ) : (
+                        <code className="bg-black/10 rounded-lg px-1 py-0.5" {...props}>
+                          {children}
+                        </code>
+                      );
+                    },
                   }}
-                  className="text-sm overflow-hidden leading-7"
                 >
-                  {message.content || ""}
+                  {message.content}
                 </ReactMarkdown>
               </div>
             ))}
